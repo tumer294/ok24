@@ -39,6 +39,7 @@ export const useSpeechRecognition = () => {
   const finalTranscriptRef = useRef('');
   const isVoiceModeRef = useRef(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -52,6 +53,10 @@ export const useSpeechRecognition = () => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
+    }
+    if (silenceTimeoutRef.current) {
+      clearTimeout(silenceTimeoutRef.current);
+      silenceTimeoutRef.current = null;
     }
     if (recognitionRef.current) {
       recognitionRef.current.abort();
@@ -139,20 +144,35 @@ export const useSpeechRecognition = () => {
       console.log('📝 Transcript updated:', currentTranscript);
       setTranscript(currentTranscript);
 
-      // For voice mode, process final results immediately
+      // Clear any existing silence timeout
+      if (silenceTimeoutRef.current) {
+        clearTimeout(silenceTimeoutRef.current);
+        silenceTimeoutRef.current = null;
+      }
+
+      // For voice mode, set a silence timeout after final results
       if (finalTranscript && isVoiceModeRef.current && onSpeechEndRef.current) {
-        console.log('🎯 Final result for voice mode:', finalTranscriptRef.current);
-        const fullText = finalTranscriptRef.current.trim();
-        if (fullText) {
-          recognition.stop();
-          // Process the speech immediately
-          const callback = onSpeechEndRef.current;
-          setTimeout(() => {
-            if (callback) {
-              callback(fullText);
-            }
-          }, 100);
-        }
+        console.log('🎯 Final result detected, setting silence timeout');
+        
+        // Wait for silence before processing (longer timeout for mobile)
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        const silenceDelay = isMobile ? 2500 : 2000; // 2.5 seconds for mobile, 2 seconds for desktop
+        
+        silenceTimeoutRef.current = setTimeout(() => {
+          const fullText = finalTranscriptRef.current.trim();
+          if (fullText && isVoiceModeRef.current && onSpeechEndRef.current) {
+            console.log('🔇 Silence detected, processing speech:', fullText);
+            recognition.stop();
+            
+            // Process the speech after a brief delay
+            const callback = onSpeechEndRef.current;
+            setTimeout(() => {
+              if (callback) {
+                callback(fullText);
+              }
+            }, 200);
+          }
+        }, silenceDelay);
       }
     };
 
@@ -160,6 +180,12 @@ export const useSpeechRecognition = () => {
       console.log('🛑 Speech recognition ended');
       setIsListening(false);
       recognitionRef.current = null;
+      
+      // Clear silence timeout
+      if (silenceTimeoutRef.current) {
+        clearTimeout(silenceTimeoutRef.current);
+        silenceTimeoutRef.current = null;
+      }
       
       // For manual mode, keep the transcript
       if (!isVoiceModeRef.current && finalTranscriptRef.current) {
@@ -180,6 +206,12 @@ export const useSpeechRecognition = () => {
       }
       setIsListening(false);
       recognitionRef.current = null;
+      
+      // Clear silence timeout on error
+      if (silenceTimeoutRef.current) {
+        clearTimeout(silenceTimeoutRef.current);
+        silenceTimeoutRef.current = null;
+      }
     };
 
     try {
@@ -213,12 +245,15 @@ export const useSpeechRecognition = () => {
       clearTimeout(timeoutRef.current);
     }
     
-    // Set a timeout to restart listening
+    // Set a longer timeout to restart listening (especially for mobile)
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const restartDelay = isMobile ? 2000 : 1500; // 2 seconds for mobile, 1.5 seconds for desktop
+    
     timeoutRef.current = setTimeout(() => {
       if (isVoiceModeRef.current) {
         startListening(onSpeechEnd);
       }
-    }, 1000);
+    }, restartDelay);
   }, [startListening]);
 
   return {

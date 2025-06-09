@@ -53,20 +53,32 @@ export const useSpeechSynthesis = () => {
 
     utterance.onend = () => {
       setIsSpeaking(false);
-      // Call the callback if provided
+      // Call the callback with a longer delay for mobile devices
       if (onEndCallbackRef.current) {
-        onEndCallbackRef.current();
+        const callback = onEndCallbackRef.current;
         onEndCallbackRef.current = null;
+        
+        // Longer delay especially for mobile devices
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        const delay = isMobile ? 3000 : 2000; // 3 seconds for mobile, 2 seconds for desktop
+        
+        setTimeout(() => {
+          callback();
+        }, delay);
       }
     };
 
     utterance.onerror = (event) => {
       console.error('Speech synthesis error:', event.error);
       setIsSpeaking(false);
-      // Call the callback even on error
+      // Call the callback even on error with delay
       if (onEndCallbackRef.current) {
-        onEndCallbackRef.current();
+        const callback = onEndCallbackRef.current;
         onEndCallbackRef.current = null;
+        
+        setTimeout(() => {
+          callback();
+        }, 2000);
       }
     };
 
