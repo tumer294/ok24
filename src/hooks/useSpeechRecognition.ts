@@ -94,15 +94,12 @@ export const useSpeechRecognition = () => {
       clearTimeout(timeoutRef.current);
     }
     
-    // Set a longer timeout to restart listening (especially for mobile)
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    const restartDelay = isMobile ? 3000 : 2000; // 3 seconds for mobile, 2 seconds for desktop
-    
+    // Set 1 second timeout to restart listening
     timeoutRef.current = setTimeout(() => {
       if (isVoiceModeRef.current) {
         startListening(onSpeechEnd);
       }
-    }, restartDelay);
+    }, 1000); // 1 second delay
   }, []);
 
   const startListening = useCallback(async (onSpeechEnd?: (text: string) => void) => {
@@ -174,10 +171,7 @@ export const useSpeechRecognition = () => {
       if (finalTranscript && isVoiceModeRef.current && onSpeechEndRef.current) {
         console.log('🎯 Final result detected, setting silence timeout');
         
-        // Wait for silence before processing (longer timeout for mobile)
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        const silenceDelay = isMobile ? 3500 : 3000; // 3.5 seconds for mobile, 3 seconds for desktop
-        
+        // Wait 1 second for silence before processing
         silenceTimeoutRef.current = setTimeout(() => {
           const fullText = finalTranscriptRef.current.trim();
           if (fullText && isVoiceModeRef.current && onSpeechEndRef.current) {
@@ -192,7 +186,7 @@ export const useSpeechRecognition = () => {
               }
             }, 300);
           }
-        }, silenceDelay);
+        }, 1000); // 1 second silence detection
       }
     };
 
