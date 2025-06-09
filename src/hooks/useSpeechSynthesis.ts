@@ -53,14 +53,14 @@ export const useSpeechSynthesis = () => {
 
     utterance.onend = () => {
       setIsSpeaking(false);
-      // Call the callback with a longer delay for mobile devices
+      // Call the callback with a longer delay to ensure speech is completely finished
       if (onEndCallbackRef.current) {
         const callback = onEndCallbackRef.current;
         onEndCallbackRef.current = null;
         
-        // Longer delay especially for mobile devices
+        // Longer delay to ensure speech is completely finished before starting to listen
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        const delay = isMobile ? 3000 : 2000; // 3 seconds for mobile, 2 seconds for desktop
+        const delay = isMobile ? 4000 : 3000; // 4 seconds for mobile, 3 seconds for desktop
         
         setTimeout(() => {
           callback();
@@ -78,7 +78,7 @@ export const useSpeechSynthesis = () => {
         
         setTimeout(() => {
           callback();
-        }, 2000);
+        }, 3000);
       }
     };
 
