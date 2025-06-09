@@ -85,6 +85,26 @@ export const useSpeechRecognition = () => {
     }
   };
 
+  // Function specifically for voice mode to restart listening
+  const restartListening = useCallback((onSpeechEnd: (text: string) => void) => {
+    console.log('🔄 Restarting listening for voice mode');
+    
+    // Clear any existing timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    
+    // Set a longer timeout to restart listening (especially for mobile)
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const restartDelay = isMobile ? 2000 : 1500; // 2 seconds for mobile, 1.5 seconds for desktop
+    
+    timeoutRef.current = setTimeout(() => {
+      if (isVoiceModeRef.current) {
+        startListening(onSpeechEnd);
+      }
+    }, restartDelay);
+  }, []);
+
   const startListening = useCallback(async (onSpeechEnd?: (text: string) => void) => {
     if (!isSupported) return;
 
@@ -201,6 +221,14 @@ export const useSpeechRecognition = () => {
       } else if (event.error === 'not-allowed') {
         console.error('❌ Microphone permission denied');
         alert('Mikrofon erişimi reddedildi. Lütfen tarayıcı ayarlarından mikrofon iznini verin ve sayfayı yenileyin.');
+      } else if (event.error === 'no-speech') {
+        console.log('🔇 No speech detected');
+        // If in voice mode, restart listening after no-speech error
+        if (isVoiceModeRef.current && onSpeechEndRef.current) {
+          console.log('🔄 Restarting listening after no-speech error in voice mode');
+          restartListening(onSpeechEndRef.current);
+          return; // Don't set isListening to false
+        }
       } else {
         console.error('❌ Speech recognition error:', event.error);
       }
@@ -221,7 +249,7 @@ export const useSpeechRecognition = () => {
       setIsListening(false);
       recognitionRef.current = null;
     }
-  }, [isSupported, cleanup]);
+  }, [isSupported, cleanup, restartListening]);
 
   const stopListening = useCallback(() => {
     console.log('⏹️ Stopping speech recognition');
@@ -235,26 +263,6 @@ export const useSpeechRecognition = () => {
     setTranscript('');
     finalTranscriptRef.current = '';
   }, []);
-
-  // Function specifically for voice mode to restart listening
-  const restartListening = useCallback((onSpeechEnd: (text: string) => void) => {
-    console.log('🔄 Restarting listening for voice mode');
-    
-    // Clear any existing timeout
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-    
-    // Set a longer timeout to restart listening (especially for mobile)
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    const restartDelay = isMobile ? 2000 : 1500; // 2 seconds for mobile, 1.5 seconds for desktop
-    
-    timeoutRef.current = setTimeout(() => {
-      if (isVoiceModeRef.current) {
-        startListening(onSpeechEnd);
-      }
-    }, restartDelay);
-  }, [startListening]);
 
   return {
     isListening,
