@@ -12,6 +12,8 @@ function App() {
   const [attachment, setAttachment] = useState<ChatAttachment | null>(null);
   const [autoSpeak, setAutoSpeak] = useState(true);
   const [isVoiceMode, setIsVoiceMode] = useState(false);
+  const [currentUserSpeech, setCurrentUserSpeech] = useState('');
+  const [currentBotSpeech, setCurrentBotSpeech] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const voiceModeRef = useRef(false);
@@ -56,12 +58,20 @@ function App() {
     }
   }, [transcript, isVoiceMode, isListening, resetTranscript]);
 
+  // Voice mode: show current user speech
+  useEffect(() => {
+    if (isVoiceMode && transcript) {
+      setCurrentUserSpeech(transcript);
+    }
+  }, [transcript, isVoiceMode]);
+
   // Voice conversation handler
   const handleVoiceConversation = async (spokenText: string) => {
     console.log('🎙️ Voice conversation triggered with:', spokenText);
     
     if (!spokenText.trim()) {
       console.log('⚠️ Empty speech, restarting listening');
+      setCurrentUserSpeech('');
       if (voiceModeRef.current) {
         restartListening(handleVoiceConversation);
       }
@@ -70,6 +80,7 @@ function App() {
 
     // Reset transcript after using it
     resetTranscript();
+    setCurrentUserSpeech('');
 
     // Add user message
     const userMessage: ChatMessage = {
@@ -102,8 +113,10 @@ function App() {
       // Speak response and restart listening when done
       if (data.textResponse && voiceModeRef.current) {
         console.log('🔊 Speaking response and then restarting listening');
+        setCurrentBotSpeech(data.textResponse);
         speak(data.textResponse, () => {
           // Restart listening after speech ends
+          setCurrentBotSpeech('');
           if (voiceModeRef.current) {
             console.log('🔄 Restarting listening after speech');
             restartListening(handleVoiceConversation);
@@ -174,6 +187,8 @@ function App() {
     setMessages([]);
     setIsVoiceMode(false);
     voiceModeRef.current = false;
+    setCurrentUserSpeech('');
+    setCurrentBotSpeech('');
     stopSpeaking();
     stopListening();
     resetTranscript();
@@ -257,6 +272,8 @@ function App() {
       console.log('⏹️ Stopping voice mode');
       setIsVoiceMode(false);
       voiceModeRef.current = false;
+      setCurrentUserSpeech('');
+      setCurrentBotSpeech('');
       stopListening();
       stopSpeaking();
     } else {
@@ -264,6 +281,8 @@ function App() {
       console.log('▶️ Starting voice mode');
       setIsVoiceMode(true);
       voiceModeRef.current = true;
+      setCurrentUserSpeech('');
+      setCurrentBotSpeech('');
       resetTranscript();
       startListening(handleVoiceConversation);
     }
@@ -304,7 +323,7 @@ function App() {
     return (
       <div className="fixed inset-0 bg-gradient-to-br from-blue-50 via-white to-green-50 flex flex-col">
         {/* Header */}
-        <div className="w-full relative h-[10vh] min-h-[80px] max-h-[100px]">
+        <div className="w-full relative h-[8vh] min-h-[60px] max-h-[80px]">
           <img
             src="/header.jpg"
             className="w-full h-full object-cover"
@@ -316,104 +335,124 @@ function App() {
               background: 'linear-gradient(to bottom, rgba(0, 51, 102, 0.85), rgba(0, 102, 204, 0.75))'
             }}
           >
-            <h1 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-white drop-shadow-lg tracking-wider">
+            <h1 className="text-sm sm:text-lg md:text-xl lg:text-2xl font-bold text-white drop-shadow-lg tracking-wider">
               TURGUT ÖZAL KAİHL
             </h1>
           </div>
         </div>
 
-        {/* Voice Mode Content */}
-        <div className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8">
-          {/* Close Button */}
-          <div className="absolute top-24 right-4 sm:right-8">
-            <button
-              onClick={handleVoiceToggle}
-              className="bg-red-500 hover:bg-red-600 text-white p-3 rounded-full shadow-lg transition-colors"
-              title="Sesli modu kapat"
-            >
-              <X className="w-6 h-6" />
-            </button>
-          </div>
+        {/* Close Button */}
+        <div className="absolute top-2 right-2 z-10">
+          <button
+            onClick={handleVoiceToggle}
+            className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-full shadow-lg transition-colors"
+            title="Sesli modu kapat"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
 
-          {/* Visual Feedback - Only show one state at a time */}
-          <div className="text-center flex flex-col items-center">
+        {/* Voice Mode Content */}
+        <div className="flex-1 flex flex-col p-2 overflow-hidden">
+          {/* Visual Feedback */}
+          <div className="flex-1 flex flex-col items-center justify-center">
             {currentState === 'listening' && (
-              <div className="mb-6 flex flex-col items-center">
+              <div className="flex flex-col items-center">
                 <img 
                   src="/dinle.gif" 
                   alt="Dinleniyor" 
-                  className="w-48 h-48 sm:w-60 sm:h-60 md:w-72 md:h-72 lg:w-84 lg:h-84 object-cover rounded-full shadow-2xl"
+                  className="w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 object-cover rounded-full shadow-2xl"
                 />
-                <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-green-700 mt-6">
+                <p className="text-lg sm:text-xl md:text-2xl font-bold text-green-700 mt-4">
                   🎤 Dinleniyor...
                 </p>
-                <p className="text-sm sm:text-base text-green-600 mt-2">
+                <p className="text-xs sm:text-sm text-green-600 mt-1">
                   Konuşmaya başlayın
                 </p>
-                {transcript && (
-                  <div className="mt-4 p-4 bg-green-100 rounded-lg max-w-md mx-auto">
-                    <p className="text-green-800 font-medium">"{transcript}"</p>
-                  </div>
-                )}
               </div>
             )}
             
             {currentState === 'speaking' && (
-              <div className="mb-6 flex flex-col items-center">
+              <div className="flex flex-col items-center">
                 <img 
                   src="/konus.gif" 
                   alt="Konuşuyor" 
-                  className="w-48 h-48 sm:w-60 sm:h-60 md:w-72 md:h-72 lg:w-84 lg:h-84 object-cover rounded-full shadow-2xl"
+                  className="w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 object-cover rounded-full shadow-2xl"
                 />
-                <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-blue-700 mt-6">
+                <p className="text-lg sm:text-xl md:text-2xl font-bold text-blue-700 mt-4">
                   🔊 Konuşuyor...
                 </p>
-                <p className="text-sm sm:text-base text-blue-600 mt-2">
+                <p className="text-xs sm:text-sm text-blue-600 mt-1">
                   Yanıt veriliyor
                 </p>
               </div>
             )}
 
             {currentState === 'loading' && (
-              <div className="mb-6 flex flex-col items-center">
-                <div className="w-48 h-48 sm:w-60 sm:h-60 md:w-72 md:h-72 lg:w-84 lg:h-84 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center shadow-2xl">
+              <div className="flex flex-col items-center">
+                <div className="w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center shadow-2xl">
                   <div className="flex space-x-2">
-                    <div className="w-4 h-4 sm:w-6 sm:h-6 bg-blue-500 rounded-full animate-bounce"></div>
-                    <div className="w-4 h-4 sm:w-6 sm:h-6 bg-blue-500 rounded-full animate-bounce delay-150"></div>
-                    <div className="w-4 h-4 sm:w-6 sm:h-6 bg-blue-500 rounded-full animate-bounce delay-300"></div>
+                    <div className="w-3 h-3 sm:w-4 sm:h-4 bg-blue-500 rounded-full animate-bounce"></div>
+                    <div className="w-3 h-3 sm:w-4 sm:h-4 bg-blue-500 rounded-full animate-bounce delay-150"></div>
+                    <div className="w-3 h-3 sm:w-4 sm:h-4 bg-blue-500 rounded-full animate-bounce delay-300"></div>
                   </div>
                 </div>
-                <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-blue-600 mt-6">
+                <p className="text-lg sm:text-xl md:text-2xl font-bold text-blue-600 mt-4">
                   🤔 Düşünüyor...
                 </p>
-                <p className="text-sm sm:text-base text-blue-500 mt-2">
+                <p className="text-xs sm:text-sm text-blue-500 mt-1">
                   Yanıt hazırlanıyor
                 </p>
               </div>
             )}
             
             {currentState === 'idle' && (
-              <div className="mb-6 flex flex-col items-center">
-                <div className="w-48 h-48 sm:w-60 sm:h-60 md:w-72 md:h-72 lg:w-84 lg:h-84 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center shadow-2xl">
-                  <Mic className="w-18 h-18 sm:w-24 sm:h-24 lg:w-30 lg:h-30 text-gray-400" />
+              <div className="flex flex-col items-center">
+                <div className="w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center shadow-2xl">
+                  <Mic className="w-12 h-12 sm:w-16 sm:h-16 text-gray-400" />
                 </div>
-                <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-600 mt-6">
+                <p className="text-lg sm:text-xl md:text-2xl font-bold text-gray-600 mt-4">
                   ⏳ Hazır...
                 </p>
-                <p className="text-sm sm:text-base text-gray-500 mt-2">
+                <p className="text-xs sm:text-sm text-gray-500 mt-1">
                   Konuşmaya başlamak için bekliyor
                 </p>
               </div>
             )}
           </div>
 
+          {/* Current Speech Display */}
+          <div className="h-32 sm:h-40 flex flex-col justify-end p-2">
+            {/* User Speech */}
+            {currentUserSpeech && (
+              <div className="mb-2">
+                <div className="bg-[#003366] text-white p-3 rounded-2xl max-w-[90%] ml-auto">
+                  <p className="text-sm font-medium break-words">{currentUserSpeech}</p>
+                </div>
+              </div>
+            )}
+            
+            {/* Bot Speech */}
+            {currentBotSpeech && (
+              <div className="mb-2">
+                <div className="bg-gray-50 border border-gray-200 text-gray-800 p-3 rounded-2xl max-w-[90%]">
+                  <div className="flex items-center mb-1">
+                    <Bot className="w-3 h-3 mr-1 text-[#003366]" />
+                    <span className="font-medium text-[#003366] text-xs">Asistan</span>
+                  </div>
+                  <p className="text-sm break-words">{currentBotSpeech}</p>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Instructions */}
-          <div className="mt-8 text-center max-w-2xl px-4">
-            <div className="bg-white/80 backdrop-blur-sm p-4 sm:p-6 rounded-2xl shadow-lg">
-              <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-4">
+          <div className="p-2">
+            <div className="bg-white/80 backdrop-blur-sm p-3 rounded-xl shadow-lg">
+              <h3 className="text-sm sm:text-base font-bold text-gray-800 mb-2">
                 Sesli Konuşma Modu Aktif
               </h3>
-              <p className="text-gray-600 text-sm sm:text-base leading-relaxed">
+              <p className="text-gray-600 text-xs sm:text-sm leading-relaxed">
                 Konuşun, yanıt alın ve otomatik olarak tekrar dinlemeye başlar. 
                 Çıkmak için sağ üstteki ❌ butonuna basın.
               </p>
@@ -537,7 +576,7 @@ function App() {
                 className={`mb-4 flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-[90%] sm:max-w-[85%] lg:max-w-[75%] rounded-2xl p-3 sm:p-4 ${
+                  className={`max-w-[90%] sm:max-w-[85%] lg:max-w-[75%] rounded-2xl p-3 sm:p-4 break-words ${
                     msg.type === 'user'
                       ? 'bg-[#003366] text-white shadow-lg'
                       : 'bg-gray-50 border border-gray-200 text-gray-800'
